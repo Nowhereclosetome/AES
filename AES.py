@@ -1,4 +1,5 @@
 from binascii import *
+from copy import copy
 Sbox = [
         0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76, 
         0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0, 
@@ -49,24 +50,16 @@ Rcon = [
         [0x36, 0x00, 0x00, 0x00]
 ]
 def toAESMatrix(inputarr):
-    temp = []
-    state = []
     aes_matr = []
-    i = 0
-    j = 0
-    for k in range(4): 
-        while j<4:
-            temp.append(inputarr[i])
-            i = i + 1
-            j = j + 1
-        state.append(temp)
-        temp = []
-        j = 0
+    temp = []
+    k = 0
     for i in range(4):
         for j in range(4):
-            temp.append(state[j][i])
+            temp.append(inputarr[i + k])
+            k += 4
         aes_matr.append(temp)
         temp = []
+        k = 0
     return aes_matr
 
 def S_repl(bytematr):
@@ -97,12 +90,52 @@ def shiftRows(matrix):
         newmatrix.append(row)
     return newmatrix
 
+def takeColumn(matrix,numofcolumn):
+    return [matrix[i][numofcolumn] for i in range(4)]
 
+def toRows(matrix):
+    result = []
+    temp = []
+    for i in range(len(matrix)):
+        for j in range(4):
+            temp.append(matrix[j][i])
+        result.append(temp)
+        temp = []
+    return result
+
+
+def galoisMult(a, b):
+    res = 0
+    hiBit = 0
+    for i in range(8):
+        if b & 1 == 1:
+            res ^= a
+        a <<= 1
+        hiBit = a & 0x80
+        if hiBit == 0x80:
+            a ^= 0xb
+        b >>=1
+    return res
+
+def mixColumn(column):
+    temp = copy(column)
+    column[0] = galoisMult(temp[0],2) ^ temp[3] ^ temp[2] ^ galoisMult(temp[1],3)
+    column[1] = temp[0] ^ galoisMult(temp[1],2)^ galoisMult(temp[2],3) ^ temp[3] 
+    column[2] = temp[0] ^ temp[1] ^ galoisMult(temp[2],2) ^ galoisMult(temp[3],3)
+    column[3] = galoisMult(temp[0],3) ^ temp[1] ^ galoisMult(temp[3],2) ^ temp[2]
+    return column
+
+#def mixColumns(matrix):
+
+
+
+#def expand_keys(masterkey):
     
-        
-        
 
-print(toAESMatrix([0x64, 0x45, 0x56, 0xac, 0xcd, 0xff,0x64, 0x45, 0x56, 0xac, 0xcd, 0xff, 0x45, 0xca,0xc5,0x5c,0x67]))
+print(toAESMatrix([11, 12, 13, 14, 0xcd, 0xff,0x64, 0x45, 0x56, 0xac, 0xcd, 0xff, 0x45, 0xca,0xc5,0x5c,0x67]))
+print(takeColumn(toAESMatrix([11, 12, 13, 14, 0xcd, 0xff,0x64, 0x45, 0x56, 0xac, 0xcd, 0xff, 0x45, 0xca,0xc5,0x5c,0x67]),1))
 print(S_repl([[0x64, 0x16, 0xc9],[0x44,0x66,0xfa]]))
-print(shiftRows([[0,1,2,3],[0,1,2,3],[0,1,2,3],[0,1,2,3]]))
-
+print(galoisMult(5,7))
+print(shiftRows([[1,2,3,4],[223,455,67,34],[223,455,67,34],[223,455,67,34]]))
+print(mixColumn([0x63,0x11,0x0,0x67]))
+print(toRows([[1,2,3,4],[11,55,23,11],[55,1,67,34],[44,2,12,4]]))
