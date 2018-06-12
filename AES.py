@@ -37,7 +37,6 @@ InvSbox = [
         0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
 ]
 Rcon = [
-        [0x00, 0x00, 0x00, 0x00],
         [0x01, 0x00, 0x00, 0x00],
         [0x02, 0x00, 0x00, 0x00],
         [0x04, 0x00, 0x00, 0x00],
@@ -72,6 +71,27 @@ def S_repl(bytematr):
         newmatr.append(newarr)
         newarr = [] 
     return newmatr
+
+def inv_S_repl(bytematr):
+    newarr = []
+    newmatr = []
+    num = ''
+    for bytearr in bytematr:
+        for i in bytearr:
+            newarr.append(InvSbox[i])
+        newmatr.append(newarr)
+        newarr = [] 
+    return newmatr
+
+def subBytes(column):
+    result = []
+    for i in column:
+        result.append(Sbox[i])
+    return result
+
+def unshiftOneElement(row):
+
+    
 
 def shiftOneElement(row):
     firstremember = row[0]
@@ -113,29 +133,80 @@ def galoisMult(a, b):
         a <<= 1
         hiBit = a & 0x80
         if hiBit == 0x80:
-            a ^= 0xb
+            a ^= 0x1b
         b >>=1
-    return res
+    return res%0x100
 
 def mixColumn(column):
     temp = copy(column)
-    column[0] = galoisMult(temp[0],2) ^ temp[3] ^ temp[2] ^ galoisMult(temp[1],3)
-    column[1] = temp[0] ^ galoisMult(temp[1],2)^ galoisMult(temp[2],3) ^ temp[3] 
-    column[2] = temp[0] ^ temp[1] ^ galoisMult(temp[2],2) ^ galoisMult(temp[3],3)
-    column[3] = galoisMult(temp[0],3) ^ temp[1] ^ galoisMult(temp[3],2) ^ temp[2]
+    column[0] = galoisMult(temp[0],2) ^ galoisMult(temp[3],1) ^ galoisMult(temp[2],1) ^ galoisMult(temp[1],3)
+    column[1] = galoisMult(temp[0],1) ^ galoisMult(temp[1],2)^ galoisMult(temp[2],3) ^ galoisMult(temp[3],1) 
+    column[2] = galoisMult(temp[0],1) ^ galoisMult(temp[1],1) ^ galoisMult(temp[2],2) ^ galoisMult(temp[3],3)
+    column[3] = galoisMult(temp[0],3) ^ galoisMult(temp[1],1) ^ galoisMult(temp[3],2) ^ galoisMult(temp[2],1)
     return column
 
-#def mixColumns(matrix):
+def mixColumns(matrix):
+    result = []
+    for i in range(len(matrix)):
+        result.append(mixColumn(takeColumn(matrix,i)))
+    result = toRows(result)
+    return result
+
+def colXor(a,b):
+    result = []
+    for i in range(len(a)):
+        result.append(a[i]^b[i])
+    return result
+
+def expandKeys(masterkey):
+    keyschedule = []
+    keyschedule.append(masterkey)
+    for i in range(len(Rcon)):
+        curTemplate = keyschedule[i]
+        matrix = []
+        lastColumn = takeColumn(curTemplate,3)
+        lastColumn = shiftOneElement(lastColumn)
+        lastColumn = subBytes(lastColumn)
+        matrix.append(colXor(colXor(lastColumn,takeColumn(curTemplate,0)),Rcon[i]))
+        for i in range(1,4):
+            matrix.append(colXor(takeColumn(curTemplate,i),matrix[i-1]))
+        keyschedule.append(toRows(matrix))
+        matrix = []
+    return keyschedule
+
+def XorMatrix(a,b):
+    result = []
+    temp = []
+    for i in range(len(a)):
+        for j in range(len(a[0])):
+            temp.append(a[i][j]^b[i][j])
+        result.append(temp)
+        temp = []
+    return result
+
+def printMatrix(matrix):
+    temp = []
+    for i in matrix:
+        for j in i:
+            print(hex(j), end = '  ')
+        print('')
+    print("------------------------------------------------")
+
+def encryption(hexdata,hexkey):
+    AES_MATRIX = toAESMatrix(hexdata)
+    MASTER_KEY = toAESMatrix(hexkey)
+    AES_KEYS = expandKeys(MASTER_KEY)
+    printMatrix(AES_MATRIX) 
+    for i in range(1):
+        SubBytes = S_repl(AES_MATRIX)
+        printMatrix(SubBytes)
+        ShiftRows = shiftRows(SubBytes)
+        printMatrix(ShiftRows)
+        MColumns = mixColumns(ShiftRows)
+        printMatrix(MColumns)
+        KeyAdditing = XorMatrix(AES_KEYS[i],MColumns)
+        AES_MATRIX = KeyAdditing
+    return AES_MATRIX
+print(printMatrix(encryption([0x32,0x43,0xf6,0xa8,0x88,0x5a,0x30,0x8d,0x31,0x31,0x98,0xa2,0xe0,0x37,0x07,0x34],[0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,0xab,0xf7,0x15,0x88,0x09,0xcf,0xf,0x3c])))
 
 
-
-#def expand_keys(masterkey):
-    
-
-print(toAESMatrix([11, 12, 13, 14, 0xcd, 0xff,0x64, 0x45, 0x56, 0xac, 0xcd, 0xff, 0x45, 0xca,0xc5,0x5c,0x67]))
-print(takeColumn(toAESMatrix([11, 12, 13, 14, 0xcd, 0xff,0x64, 0x45, 0x56, 0xac, 0xcd, 0xff, 0x45, 0xca,0xc5,0x5c,0x67]),1))
-print(S_repl([[0x64, 0x16, 0xc9],[0x44,0x66,0xfa]]))
-print(galoisMult(5,7))
-print(shiftRows([[1,2,3,4],[223,455,67,34],[223,455,67,34],[223,455,67,34]]))
-print(mixColumn([0x63,0x11,0x0,0x67]))
-print(toRows([[1,2,3,4],[11,55,23,11],[55,1,67,34],[44,2,12,4]]))
