@@ -90,8 +90,13 @@ def subBytes(column):
     return result
 
 def unshiftOneElement(row):
-
-    
+    i = len(row)-1
+    last = row[i]
+    while i > 0:
+        row[i] = row[i-1]
+        i -= 1
+    row[0] = last
+    return row
 
 def shiftOneElement(row):
     firstremember = row[0]
@@ -110,6 +115,16 @@ def shiftRows(matrix):
         newmatrix.append(row)
     return newmatrix
 
+def unshiftRows(matrix):
+    newmatrix = []
+    row = []
+    for i in range(4):
+        row = matrix[i]
+        for j in range(i):
+            row = unshiftOneElement(row)
+        newmatrix.append(row)
+    return newmatrix
+
 def takeColumn(matrix,numofcolumn):
     return [matrix[i][numofcolumn] for i in range(4)]
 
@@ -122,7 +137,6 @@ def toRows(matrix):
         result.append(temp)
         temp = []
     return result
-
 
 def galoisMult(a, b):
     res = 0
@@ -144,6 +158,21 @@ def mixColumn(column):
     column[2] = galoisMult(temp[0],1) ^ galoisMult(temp[1],1) ^ galoisMult(temp[2],2) ^ galoisMult(temp[3],3)
     column[3] = galoisMult(temp[0],3) ^ galoisMult(temp[1],1) ^ galoisMult(temp[3],2) ^ galoisMult(temp[2],1)
     return column
+
+def reverseMixColumn(column):
+    temp = copy(column)
+    column[0] = galoisMult(temp[0],0x0e) ^ galoisMult(temp[3],0x09) ^ galoisMult(temp[2],0x0d) ^ galoisMult(temp[1],0x0b)
+    column[1] = galoisMult(temp[0],0x09) ^ galoisMult(temp[1],0x0e)^ galoisMult(temp[2],0x0b) ^ galoisMult(temp[3],0x0d) 
+    column[2] = galoisMult(temp[0],0x0d) ^ galoisMult(temp[1],0x09) ^ galoisMult(temp[2],0x0e) ^ galoisMult(temp[3],0x0b)
+    column[3] = galoisMult(temp[0],0x0b) ^ galoisMult(temp[1],0x0d) ^ galoisMult(temp[3],0x0e) ^ galoisMult(temp[2],0x09)
+    return column
+
+def reverseMixColumns(matrix):
+    result = []
+    for i in range(len(matrix)):
+        result.append(reverseMixColumn(takeColumn(matrix,i)))
+    result = toRows(result)
+    return result
 
 def mixColumns(matrix):
     result = []
@@ -206,7 +235,26 @@ def encryption(hexdata,hexkey):
         printMatrix(MColumns)
         KeyAdditing = XorMatrix(AES_KEYS[i],MColumns)
         AES_MATRIX = KeyAdditing
-    return AES_MATRIX
-print(printMatrix(encryption([0x32,0x43,0xf6,0xa8,0x88,0x5a,0x30,0x8d,0x31,0x31,0x98,0xa2,0xe0,0x37,0x07,0x34],[0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,0xab,0xf7,0x15,0x88,0x09,0xcf,0xf,0x3c])))
+    return toArr(AES_MATRIX)
 
+def toArr(matrix):
+    arr = []
+    for j in range(len(matrix[0])):
+        for i in range(len(matrix)):
+            arr.append(matrix[i][j])
+    return arr
 
+def decryption(hexdata,hexkey):
+    AES_MATRIX = toAESMatrix(hexdata)
+    MASTER_KEY = toAESMatrix(hexkey)
+    AES_KEYS = expandKeys(MASTER_KEY)
+    printMatrix(AES_MATRIX) 
+    for i in range(1):
+        KeyAdditing = XorMatrix(AES_KEYS[i],AES_MATRIX)
+        MColumns = reverseMixColumns(KeyAdditing)
+        UnshRows = unshiftRows(MColumns)
+        UnsubBytes = inv_S_repl(UnshRows)
+        AES_MATRIX = UnsubBytes
+    return toArr(AES_MATRIX)
+print(encryption([0x32,0x43,0xf6,0xa8,0x88,0x5a,0x30,0x8d,0x31,0x31,0x98,0xa2,0xe0,0x37,0x07,0x34],[0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,0xab,0xf7,0x15,0x88,0x09,0xcf,0xf,0x3c]))
+print(decryption(encryption([0x32,0x43,0xf6,0xa8,0x88,0x5a,0x30,0x8d,0x31,0x31,0x98,0xa2,0xe0,0x37,0x07,0x34],[0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,0xab,0xf7,0x15,0x88,0x09,0xcf,0xf,0x3c]),[0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,0xab,0xf7,0x15,0x88,0x09,0xcf,0xf,0x3c]))
